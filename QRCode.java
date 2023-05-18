@@ -528,10 +528,10 @@ public class YourService extends KiboRpcService {
     }
     protected String getQRData(Mat img)
     {
-        Mat imag = new Mat();
-        Core.flip(img, imag, Core.ROTATE_180);
-        Rect rectCrop = new Rect(240, 330, 540, 380);
-        Mat image = new Mat(imag, rectCrop);
+        Rect rectCrop = new Rect(530, 500, 100, 150);
+        Mat image = new Mat(img, rectCrop);
+        Core.flip(image, image, Core.ROTATE_180);
+        Core.flip(image, image, +1);
         QRCodeDetector decoder = new QRCodeDetector();
         api.saveMatImage(image, "3_QRCodes_Undistort_Flip.png");
         Mat points = new Mat();
