@@ -147,8 +147,8 @@ public class YourService extends KiboRpcService {
 
         // move to QR codes (11.381944 -8.566172 3.76203)
         Point point1 = new Point(10.4d, -9.8d, 4.6d);
-        Point point2 = new Point(10.95d, -9.05d, 4.7d);
-        Point point3 = new Point(11.38d, -8.56d, 4.85d);
+        Point point2 = new Point(11.1d, -9.05d, 4.7d);
+        Point point3 = new Point(11.38d, -8.56d, 4.34d);
         Quaternion quaternion = computeQuaternion(0.0, 90, 0);
         moveAstrobee(point1, quaternion, 'A', Boolean.TRUE);
         moveAstrobee(point2, quaternion, 'A', Boolean.TRUE);
@@ -209,8 +209,10 @@ public class YourService extends KiboRpcService {
 
         // notify that astrobee is heading to the goal
         api.notifyGoingToGoal();
+        Point reposition = new Point(11.38d, -8.56d, 4.85d);
         Point toGoal1 = new Point(11.143d, -6.7607d, 4.9654d);
         Quaternion quaternionToGoal = computeQuaternion(0.0, 0, 0);
+        moveAstrobee(reposition, quaternionToGoal, 'A', Boolean.TRUE);
         moveAstrobee(toGoal1, quaternionToGoal, 'A', Boolean.TRUE);
 
 
@@ -528,10 +530,10 @@ public class YourService extends KiboRpcService {
     }
     protected String getQRData(Mat img)
     {
-        Mat imag = new Mat();
-        Core.flip(img, imag, Core.ROTATE_180);
-        Rect rectCrop = new Rect(640, 480, 640, 480);
-        Mat image = new Mat(imag, rectCrop);
+        Rect rectCrop = new Rect(100, 100, 1080, 760);
+        Mat image = new Mat(img, rectCrop);
+        Core.flip(image, image, Core.ROTATE_180);
+        Core.flip(image, image, +1);
         QRCodeDetector decoder = new QRCodeDetector();
         api.saveMatImage(image, "3_QRCodes_Undistort_Flip.png");
         Mat points = new Mat();
