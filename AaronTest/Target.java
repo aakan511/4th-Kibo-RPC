@@ -23,6 +23,7 @@ public class Target {
 
     private static Path[] QR = {new Path(0.0, null, new Quaternion()), new Path(), new Path(), new Path(), new Path(), new Path()}; //This one is all u Justin
 
+    private static Point[] reversePointHelper = {new Point(11.2146d, -9.92284, 5.47), new Point(10.5, -9.21, 4.51), new Point(10.71, -7.763, 4.75) };
     //QR = target 7
     //QR indexes are off by one since there is no reason to go straight to the qr code from the start
     private Target() {};
@@ -37,9 +38,11 @@ public class Target {
             //p.setQuaternion(orientations[nextTarget-1]);
             Point[] pts = new Point[p.getPoints().length];
 
-            for(int i=0; i< pts.length; i++){
+
+            for(int i=0; i< pts.length-1; i++){
                 pts[i] = p.getPoints()[p.getPoints().length -1 - i];
             }
+            pts[pts.length-1] = reversePointHelper[nextTarget-1];
 
             return (new Path(p.getDistance(), pts, orientations[nextTarget-1]));
         }
