@@ -21,7 +21,7 @@ public class Target {
 
     private static Path[] target6 = {new Path(0.0, null, orientations[5]), new Path(), new Path(), new Path(), new Path(), new Path()};
 
-    private static Path[] QR = {new Path(0.0, null, new Quaternion()), new Path(), new Path(), new Path(), new Path(), new Path()}; //This one is all u Justin
+    private static Path[] QR = {new Path(0.0, new Point[]{new Point(11.38, -8.56, 4.85)}, orientations[6]), new Path(0.0, new Point[]{new Point(10.7, -8.95, 4.8), new Point(11.38, -8.56, 4.85)}, orientations[6]), new Path(), new Path(), new Path(), new Path()}; //This one is all u Justin
 
     private static Point[] reversePointHelper = {new Point(11.2146d, -9.92284, 5.47), new Point(10.5, -9.21, 4.51), new Point(10.71, -7.763, 4.75) };
     //QR = target 7
