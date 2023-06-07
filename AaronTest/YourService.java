@@ -3,11 +3,9 @@ package jp.jaxa.iss.kibo.rpc.sampleapk;
 import android.graphics.Bitmap;
 import android.util.Log;
 
-import org.opencv.aruco.Aruco;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -50,16 +48,33 @@ public class YourService extends KiboRpcService {
             Log.i(TAG, "distortion[" + i + "] = " + distortion[1][i]);
         }
 
+        int currTarget=0;
+        int[] targets = {2, 3, 1, 2};
+        for(int nextTarget : targets){
+            List<Integer> list = api.getActiveTargets();
+            Log.i(TAG, "active targets(nextTarget=" + nextTarget + "): " + Arrays.toString(list.toArray()));
 
-        int loop_counter = 0;
+            Path path = Target.getPath(currTarget, nextTarget);
+            for(Point p : path.getPoints()){
+                moveAstrobee(p, path.getQuaternion(), 'A', true);
+            }
 
-//        while (true){
-//            // get the list of active target id
-//
-//            /* ************************************************ */
-//            /* write your own code and repair the ammonia leak! */
-//            /* ************************************************ */
-//
+            api.laserControl(true);
+
+            Bitmap bmpimage = api.getBitmapNavCam();
+            api.saveBitmapImage(bmpimage, "target" + nextTarget + "Laserbmp.jpg");
+
+            Mat image = api.getMatNavCam();
+
+            api.takeTargetSnapshot(nextTarget);
+
+            api.saveMatImage(image, "target" + nextTarget + "_test");
+
+            currTarget = nextTarget;
+        }
+
+
+
 //            // get remaining active time and mission time
 //            List<Long> timeRemaining = api.getTimeRemaining();
 //
@@ -67,114 +82,109 @@ public class YourService extends KiboRpcService {
 //            if (timeRemaining.get(1) < 60000){
 //                break;
 //            }
-//
-//            loop_counter++;
-//            if (loop_counter == 2){
-//                break;
-//            }
-//        }
+
 
         List<Integer> list = api.getActiveTargets();
         Log.i(TAG, "active targets: " + Arrays.toString(list.toArray()));
         // move to a point
 //        Point point = new Point(10.4d, -10.2d, 4.47d);
-        Quaternion quaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);//new Quaternion(0f, 0f, 0f, 1f);
-
-        Point point = new Point(10.6d, -10.0d, 5.2988d);
-        moveAstrobee(point, quaternion, 'A', true);
-
-        //point = new Point(11.1d, -9.5d, 5.2988d);
-        //moveAstrobee(point, quaternion, 'A', true);
-
-        //point = new Point(11.2746d, -9.92284, 5.2988); //Astrobee coords
-
-        point = new Point(11.2146d, -9.92284, 5.47);
-        moveAstrobee(point, quaternion, 'A', true);
-        // irradiate the laser
-        api.laserControl(true);
-
-        Bitmap bmpimage = api.getBitmapNavCam();
-        api.saveBitmapImage(bmpimage,"3_target1Laserbmp.jpg");
-
-        // get a camera image
-        Mat image = api.getMatNavCam();
-        Mat image_undistorted = new Mat();
-
-        org.opencv.imgproc.Imgproc.undistort(image, image_undistorted, camMat, distortionCoefficients); //undistorts image
-
-
-        //BEGIN EXPERIMENT WITH TVEC AND RVEC
-        ArrayList<Mat> corners = new ArrayList<Mat>();
-        List<Mat> new_corners = new ArrayList<>() ;
-        Mat ids = new Mat();
-
-        Aruco.detectMarkers(image, Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250), corners, ids);
-
-
-        Mat rvec = new Mat();
-        Mat tvec = new Mat();
-        Aruco.estimatePoseSingleMarkers(corners, markerLength, camMat, distortionCoefficients, rvec, tvec);
-
-        Log.i(TAG, "rvec :"+rvec.dump());
-        Log.i(TAG, "tvec :"+tvec.dump());
-
-
-        //END EXPERIMENT
-
-
-        // take active target snapshots
-        int target_id = 1;
-        //target_id = api.getActiveTargets().iterator().next();
-        Log.i(TAG, "target_id= " + target_id);
-        api.takeTargetSnapshot(target_id);
-        api.saveMatImage(image, "target1_test");
-        api.saveMatImage(image_undistorted, "target1_undsistort");
-
-
-//Point 1 - point 2 path
-        quaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
-        point = new Point(10.5, -9.0709, 4.75);
-        moveAstrobee(point, quaternion, 'A', true);
-
-        point = new Point(10.5, -9.21, 4.51); //Point(10.5, -9.19, 4.54)
-        moveAstrobee(point, quaternion, 'A', true);
-
-        api.laserControl(true);
-
-        Bitmap bmpimage2 = api.getBitmapNavCam();
-        api.saveBitmapImage(bmpimage2, "target2_bpm.jpg");
-
-        Mat image2 = api.getMatNavCam();
-
-        target_id = 2;
-        Log.i(TAG, "target_id= " + target_id);
-        api.takeTargetSnapshot(target_id);
-        api.saveMatImage(image2, "target2_laser");
-//End point 1-2 path
-
-
-//Point 2-3 path
-
-        quaternion = new Quaternion(0.f, 0.707f, 0f, 0.707f);
-        point = new Point(10.71, -8.5, 4.75);
-        moveAstrobee(point, quaternion, 'A', true);
-
-        point = new Point(10.71, -7.763, 4.75);
-        moveAstrobee(point, quaternion, 'A', true);
-
-        api.laserControl(true);
-
-        Bitmap bmpimage3 = api.getBitmapNavCam();
-        api.saveBitmapImage(bmpimage3, "target3_bpm.jpg");
-
-        Mat image3 = api.getMatNavCam();
-
-        target_id = 3;
-        Log.i(TAG, "target_id= " + target_id);
-        api.takeTargetSnapshot(target_id);
-        api.saveMatImage(image3, "target3_laser");
-
-//END Point 2-3 path
+//        Quaternion quaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);//new Quaternion(0f, 0f, 0f, 1f);
+//
+//        Point point = new Point(10.6d, -10.0d, 5.2988d);
+//        moveAstrobee(point, quaternion, 'A', true);
+//
+//        //point = new Point(11.1d, -9.5d, 5.2988d);
+//        //moveAstrobee(point, quaternion, 'A', true);
+//
+//        //point = new Point(11.2746d, -9.92284, 5.2988); //Astrobee coords
+//
+//        point = new Point(11.2146d, -9.92284, 5.47);
+//        moveAstrobee(point, quaternion, 'A', true);
+//        // irradiate the laser
+//        api.laserControl(true);
+//
+//        Bitmap bmpimage = api.getBitmapNavCam();
+//        api.saveBitmapImage(bmpimage,"3_target1Laserbmp.jpg");
+//
+//        // get a camera image
+//        Mat image = api.getMatNavCam();
+//        Mat image_undistorted = new Mat();
+//
+//        org.opencv.imgproc.Imgproc.undistort(image, image_undistorted, camMat, distortionCoefficients); //undistorts image
+//
+//
+//        //BEGIN EXPERIMENT WITH TVEC AND RVEC
+//        ArrayList<Mat> corners = new ArrayList<Mat>();
+//        List<Mat> new_corners = new ArrayList<>() ;
+//        Mat ids = new Mat();
+//
+//        Aruco.detectMarkers(image, Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250), corners, ids);
+//
+//
+//        Mat rvec = new Mat();
+//        Mat tvec = new Mat();
+//        Aruco.estimatePoseSingleMarkers(corners, markerLength, camMat, distortionCoefficients, rvec, tvec);
+//
+//        Log.i(TAG, "rvec :"+rvec.dump());
+//        Log.i(TAG, "tvec :"+tvec.dump());
+//
+//
+//        //END EXPERIMENT
+//
+//
+//        // take active target snapshots
+//        int target_id = 1;
+//        //target_id = api.getActiveTargets().iterator().next();
+//        Log.i(TAG, "target_id= " + target_id);
+//        api.takeTargetSnapshot(target_id);
+//        api.saveMatImage(image, "target1_test");
+//        api.saveMatImage(image_undistorted, "target1_undsistort");
+//
+//
+////Point 1 - point 2 path
+//        quaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
+//        point = new Point(10.5, -9.0709, 4.75);
+//        moveAstrobee(point, quaternion, 'A', true);
+//
+//        point = new Point(10.5, -9.21, 4.51); //Point(10.5, -9.19, 4.54)
+//        moveAstrobee(point, quaternion, 'A', true);
+//
+//        api.laserControl(true);
+//
+//        Bitmap bmpimage2 = api.getBitmapNavCam();
+//        api.saveBitmapImage(bmpimage2, "target2_bpm.jpg");
+//
+//        Mat image2 = api.getMatNavCam();
+//
+//        target_id = 2;
+//        Log.i(TAG, "target_id= " + target_id);
+//        api.takeTargetSnapshot(target_id);
+//        api.saveMatImage(image2, "target2_laser");
+////End point 1-2 path
+//
+//
+////Point 2-3 path
+//
+//        quaternion = new Quaternion(0.f, 0.707f, 0f, 0.707f);
+//        point = new Point(10.71, -8.5, 4.75);
+//        moveAstrobee(point, quaternion, 'A', true);
+//
+//        point = new Point(10.71, -7.763, 4.75);
+//        moveAstrobee(point, quaternion, 'A', true);
+//
+//        api.laserControl(true);
+//
+//        Bitmap bmpimage3 = api.getBitmapNavCam();
+//        api.saveBitmapImage(bmpimage3, "target3_bpm.jpg");
+//
+//        Mat image3 = api.getMatNavCam();
+//
+//        target_id = 3;
+//        Log.i(TAG, "target_id= " + target_id);
+//        api.takeTargetSnapshot(target_id);
+//        api.saveMatImage(image3, "target3_laser");
+//
+////END Point 2-3 path
 
 
         // turn on the front flash light
