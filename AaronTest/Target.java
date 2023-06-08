@@ -15,15 +15,28 @@ public class Target {
 
     private static Path[] target3 = {new Path(0.0, new Point[]{new Point(10.71, -8.5, 4.75), new Point(10.71, -7.763, 4.75)}, orientations[2]), new Path(0.0, new Point[]{new Point(10.71, -8.5, 4.75), new Point(10.71, -7.763, 4.75)}, orientations[2]), new Path(1.515332, new Point[]{new Point(10.71, -8.5, 4.75), new Point(10.71, -7.763, 4.75)}, orientations[2])};
 
-    private static Path[] target4 = {new Path(0.0, null, orientations[3]), new Path(), new Path(), new Path()};
+    private static Path[] target4 = {new Path(0.0, new Point[]{new Point(10.5, -9.4, 4.7), new Point(10.51, -6.6115, 5.2074)}, orientations[3]),
+            new Path(0.0, new Point[]{new Point(10.51, -6.6115, 5.2074)}, orientations[3]),
+            new Path(0.0, new Point[]{new Point(10.51, -8.4, 4.7), new Point(10.51, -6.6115, 5.2074)}, orientations[3]),
+            new Path(0.0, new Point[]{new Point(10.51, -6.6115, 5.2074)}, orientations[3])};
 
-    private static Path[] target5 = {new Path(0.0, null, orientations[4]), new Path(), new Path(), new Path(), new Path()};
+    private static Path[] target5 = {new Path(0.0, new Point[]{new Point(10.5, -9.4, 4.7) , new Point(11.047,-7.9156,5.05)}, orientations[4]),
+            new Path(0.0, new Point[]{new Point(11.047,-7.9156,5.3393)}, orientations[4]),
+            new Path(0.0, new Point[]{new Point(10.76, -8.5, 5), new Point(11.047,-7.9156,5.05)}, orientations[4]),
+            new Path(0.0, new Point[]{ new Point(11.047,-7.9156,5.05)},orientations[4]),
+            new Path(0.0, new Point[]{new Point(11.047,-7.9156,5.2074)},orientations[4])};
 
-    private static Path[] target6 = {new Path(0.0, null, orientations[5]), new Path(), new Path(), new Path(), new Path(), new Path()};
+    private static Path[] target6 = {new Path(0.0, new Point[]{new Point( 11.405, -9.05, 4.94)} , orientations[5]),
+            new Path(0.0, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5]),
+            new Path(0.0, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5]),
+            new Path(0.0, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5]),
+            new Path(0.0, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5]),
+            new Path(0.0, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5])};
 
     private static Path[] QR = {new Path(0.0, new Point[]{new Point(11.38, -8.56, 4.85)}, orientations[6]), new Path(0.0, new Point[]{new Point(10.7, -8.95, 4.8), new Point(11.38, -8.56, 4.85)}, orientations[6]), new Path(), new Path(), new Path(), new Path()}; //This one is all u Justin
 
-    private static Point[] reversePointHelper = {new Point(11.2146d, -9.92284, 5.47), new Point(10.5, -9.21, 4.51), new Point(10.71, -7.763, 4.75) };
+    private static Point[] reversePointHelper = {new Point(11.2146d, -9.92284, 5.47), new Point(10.5, -9.21, 4.51), new Point(10.71, -7.763, 4.75), new Point(10.51, -6.6115, 5.2074), new Point(11.047,-7.9156,5.2), new Point( 11.405, -9.05, 4.94)};
+    
     //QR = target 7
     //QR indexes are off by one since there is no reason to go straight to the qr code from the start
     private Target() {};
