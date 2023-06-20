@@ -1,10 +1,12 @@
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
-import android.graphics.Bitmap;
 import android.util.Log;
 
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Rect;
+import org.opencv.objdetect.QRCodeDetector;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,25 +33,66 @@ public class YourService extends KiboRpcService {
         // the mission starts
         api.startMission();
 
-        double[][] distortion = api.getNavCamIntrinsics(); //gets camera distortion
+        double[][] navCamIntrinsics = api.getNavCamIntrinsics(); //gets camera distortion
         Mat camMat = new Mat().zeros(3, 3, CvType.CV_64FC(1));//intrinsic camera matrix initializer
         Mat distortionCoefficients = new Mat().zeros(4, 1, CvType.CV_64FC(1)); //distortion coefficient initializer
 
+        //camMat.put(0,0,Arrays.copyOfRange(navCamIntrinsics[0],0,8));
+        //distortionCoefficients.put(0,0,Arrays.copyOfRange(navCamIntrinsics[1],0,4));
+
         for(int r=0; r<3; r++){ //fills intrinsic camera matrix with correct values
             for(int c=0; c<3; c++) {
-                camMat.put(r, c, (distortion[0][3*r+c]));
+                camMat.put(r, c, (navCamIntrinsics[0][3*r+c]));
                 Log.i(TAG, "camMat[" + r +", " + c + "] = " + camMat.get(r, c));
-                Log.i(TAG, "distortion[" + (3*r+c) + "] = " + distortion[0][3*r+c]);
+                Log.i(TAG, "navCamIntrinsics[" + (3*r+c) + "] = " + navCamIntrinsics[0][3*r+c]);
             }
         }
-        for(int i=0; i<distortion[1].length-1; i++){ //fills distorition coefficient array with values
-            distortionCoefficients.put(i, 0, (distortion[1][i]));
+        for(int i=0; i<navCamIntrinsics[1].length-1; i++){ //fills distorition coefficient array with values
+            distortionCoefficients.put(i, 0, (navCamIntrinsics[1][i]));
             Log.i(TAG, "distortionCoefficients[" + i + "] = " + distortionCoefficients.get(0,1));
-            Log.i(TAG, "distortion[" + i + "] = " + distortion[1][i]);
+            Log.i(TAG, "navCamIntrinsics[" + i + "] = " + navCamIntrinsics[1][i]);
         }
 
+//        int currTarget=0;
+//        List<Integer> targets = api.getActiveTargets();
+//        Log.i(TAG, "active targets(before planPath):" + Arrays.toString(targets.toArray()));
+//        targets = Target.planPath(targets, currTarget);
+//        Log.i(TAG, "active targets(after planPath):" + Arrays.toString(targets.toArray()));
+//        Iterator<Integer> it = targets.iterator();
+//        int nextTarget = it.next();
+//        while(api.getTimeRemaining().get(1) - Target.nextTargetTime(currTarget, nextTarget) > 50000) {
+//
+//                Path path = Target.getPath(currTarget, nextTarget);
+//                for (Point p : path.getPoints()) {
+//                    moveAstrobee(p, path.getQuaternion(), 'A', true);
+//                }
+//
+//                api.laserControl(true);
+//
+//                Mat image = api.getMatNavCam();
+//
+//                api.takeTargetSnapshot(nextTarget);
+//
+//                api.saveMatImage(image, "target" + nextTarget + "_test");
+//
+//                currTarget = nextTarget;
+//
+//                if(it.hasNext()){
+//                    nextTarget = it.next();
+//                }else {
+//                    targets = api.getActiveTargets();
+//                    Log.i(TAG, "active targets(before planPath):" + Arrays.toString(targets.toArray()));
+//                    targets = Target.planPath(targets, currTarget);
+//                    Log.i(TAG, "active targets(after planPath):" + Arrays.toString(targets.toArray()));
+//                    it = targets.iterator();
+//                    nextTarget = it.next();
+//                }
+//        }
+
+
+
         int currTarget=0;
-        int[] targets = {2, 3, 1, 2};
+        int[] targets = {1, 2};
         for(int nextTarget : targets){
             List<Integer> list = api.getActiveTargets();
             Log.i(TAG, "active targets(nextTarget=" + nextTarget + "): " + Arrays.toString(list.toArray()));
@@ -61,8 +104,8 @@ public class YourService extends KiboRpcService {
 
             api.laserControl(true);
 
-            Bitmap bmpimage = api.getBitmapNavCam();
-            api.saveBitmapImage(bmpimage, "target" + nextTarget + "Laserbmp.jpg");
+            //Bitmap bmpimage = api.getBitmapNavCam();
+            //api.saveBitmapImage(bmpimage, "target" + nextTarget + "Laserbmp.jpg");
 
             Mat image = api.getMatNavCam();
 
@@ -74,40 +117,49 @@ public class YourService extends KiboRpcService {
         }
 
 
+//        Point point1 = new Point(10.4d, -9.8d, 4.6d);
+//        Point point2 = new Point(10.95d, -9.05d, 4.7d);
+//        Point point3 = new Point(11.38d, -8.56d, 4.85d);
+//        Quaternion quaternion = computeQuaternion(0.0, 90, 0);
+//        moveAstrobee(point1, quaternion, 'A', Boolean.TRUE);
+//        moveAstrobee(point2, quaternion, 'A', Boolean.TRUE);
+//        moveAstrobee(point3, quaternion, 'A', Boolean.TRUE);
 
-//            // get remaining active time and mission time
-//            List<Long> timeRemaining = api.getTimeRemaining();
-//
-//            // check the remaining milliseconds of mission time
-//            if (timeRemaining.get(1) < 60000){
-//                break;
-//            }
+
+        Path goQR = Target.getPath(currTarget, 7);
+        for(Point p : goQR.getPoints()){
+            moveAstrobee(p, goQR.getQuaternion(), 'A', true);
+        }
+        Mat image = api.getMatNavCam();
+        Mat imageCrtd =  new Mat(1280, 960, CvType.CV_8UC1);;
+
+        Log.i(TAG,"Distortion Total :"+distortionCoefficients.total());
+        api.saveMatImage(image, "1_QRCodes.png");
+
+        // image = api.getMatNavCam();
+        // api.saveMatImage(image, "2_ogOrientation_revised.png");
+
+        Mat image2 = undistort(image, camMat, distortionCoefficients);//getNavCamImage();
+        api.saveMatImage(image2, "2_QRCodes_Undistorted.png");
+
+        // get QR code content
+        String mQrContent = getQRData(image2);
+
+        // notify that astrobee is heading to the goal
+        api.notifyGoingToGoal();
+        Point toGoal1 = new Point(11.143d, -6.7607d, 4.9654d);
+        Quaternion quaternionToGoal = computeQuaternion(0.0, 0, 0);
+        moveAstrobee(toGoal1, quaternionToGoal, 'A', Boolean.TRUE);
+        api.reportMissionCompletion(QRDataToReport(mQrContent));
 
 
-        List<Integer> list = api.getActiveTargets();
-        Log.i(TAG, "active targets: " + Arrays.toString(list.toArray()));
-        // move to a point
-//        Point point = new Point(10.4d, -10.2d, 4.47d);
-//        Quaternion quaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);//new Quaternion(0f, 0f, 0f, 1f);
+
+
+
 //
-//        Point point = new Point(10.6d, -10.0d, 5.2988d);
-//        moveAstrobee(point, quaternion, 'A', true);
-//
-//        //point = new Point(11.1d, -9.5d, 5.2988d);
-//        //moveAstrobee(point, quaternion, 'A', true);
-//
-//        //point = new Point(11.2746d, -9.92284, 5.2988); //Astrobee coords
-//
-//        point = new Point(11.2146d, -9.92284, 5.47);
-//        moveAstrobee(point, quaternion, 'A', true);
-//        // irradiate the laser
-//        api.laserControl(true);
-//
-//        Bitmap bmpimage = api.getBitmapNavCam();
-//        api.saveBitmapImage(bmpimage,"3_target1Laserbmp.jpg");
-//
-//        // get a camera image
-//        Mat image = api.getMatNavCam();
+//        List<Integer> list = api.getActiveTargets();
+//        Log.i(TAG, "active targets: " + Arrays.toString(list.toArray()));
+
 //        Mat image_undistorted = new Mat();
 //
 //        org.opencv.imgproc.Imgproc.undistort(image, image_undistorted, camMat, distortionCoefficients); //undistorts image
@@ -130,81 +182,27 @@ public class YourService extends KiboRpcService {
 //
 //
 //        //END EXPERIMENT
-//
-//
-//        // take active target snapshots
-//        int target_id = 1;
-//        //target_id = api.getActiveTargets().iterator().next();
-//        Log.i(TAG, "target_id= " + target_id);
-//        api.takeTargetSnapshot(target_id);
-//        api.saveMatImage(image, "target1_test");
-//        api.saveMatImage(image_undistorted, "target1_undsistort");
-//
-//
-////Point 1 - point 2 path
-//        quaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
-//        point = new Point(10.5, -9.0709, 4.75);
-//        moveAstrobee(point, quaternion, 'A', true);
-//
-//        point = new Point(10.5, -9.21, 4.51); //Point(10.5, -9.19, 4.54)
-//        moveAstrobee(point, quaternion, 'A', true);
-//
-//        api.laserControl(true);
-//
-//        Bitmap bmpimage2 = api.getBitmapNavCam();
-//        api.saveBitmapImage(bmpimage2, "target2_bpm.jpg");
-//
-//        Mat image2 = api.getMatNavCam();
-//
-//        target_id = 2;
-//        Log.i(TAG, "target_id= " + target_id);
-//        api.takeTargetSnapshot(target_id);
-//        api.saveMatImage(image2, "target2_laser");
-////End point 1-2 path
-//
-//
-////Point 2-3 path
-//
-//        quaternion = new Quaternion(0.f, 0.707f, 0f, 0.707f);
-//        point = new Point(10.71, -8.5, 4.75);
-//        moveAstrobee(point, quaternion, 'A', true);
-//
-//        point = new Point(10.71, -7.763, 4.75);
-//        moveAstrobee(point, quaternion, 'A', true);
-//
-//        api.laserControl(true);
-//
-//        Bitmap bmpimage3 = api.getBitmapNavCam();
-//        api.saveBitmapImage(bmpimage3, "target3_bpm.jpg");
-//
-//        Mat image3 = api.getMatNavCam();
-//
-//        target_id = 3;
-//        Log.i(TAG, "target_id= " + target_id);
-//        api.takeTargetSnapshot(target_id);
-//        api.saveMatImage(image3, "target3_laser");
-//
-////END Point 2-3 path
+
 
 
         // turn on the front flash light
-        api.flashlightControlFront(0.05f);
-
-        // get QR code content
-        String mQrContent = yourMethod();
-
-        // turn off the front flash light
-        api.flashlightControlFront(0.00f);
-
-        // notify that astrobee is heading to the goal
-        api.notifyGoingToGoal();
-
-        /* ********************************************************** */
-        /* write your own code to move Astrobee to the goal positiion */
-        /* ********************************************************** */
-
-        // send mission completion
-        api.reportMissionCompletion(mQrContent);
+//        api.flashlightControlFront(0.05f);
+//
+//        // get QR code content
+//        String mQrContent = yourMethod();
+//
+//        // turn off the front flash light
+//        api.flashlightControlFront(0.00f);
+//
+//        // notify that astrobee is heading to the goal
+//        //api.notifyGoingToGoal();
+//
+//        /* ********************************************************** */
+//        /* write your own code to move Astrobee to the goal positiion */
+//        /* ********************************************************** */
+//
+//        // send mission completion
+//        api.reportMissionCompletion(mQrContent);
     }
 
     @Override
@@ -383,5 +381,68 @@ public class YourService extends KiboRpcService {
         {
             Thread.currentThread().interrupt();
         }
+    }
+
+    protected String getQRData(Mat img)
+    {
+        Rect rectCrop = new Rect(img.width()/4, img.height()/4, img.width()/2, img.height()/2);
+        Mat image = new Mat(img, rectCrop);
+        Core.flip(image, image, Core.ROTATE_180);
+        Core.flip(image, image, +1);
+        QRCodeDetector decoder = new QRCodeDetector();
+        api.saveMatImage(image, "3_QRCodes_Undistort_Flip.png");
+        Mat points = new Mat();
+        String data = decoder.detectAndDecode(image, points);
+        Log.i(TAG, "QR DATA: " + data);
+        if (!points.empty()){
+            Log.i(TAG, "points not empty! " + data);
+            return data;
+        }
+        return "";
+    }
+    protected String QRDataToReport(String data)
+    {
+        if (data.equals("JEM")){
+            return "STAY_AT_JEM";
+        }
+        if (data.equals("COLOMBUS")){
+            return "GO_TO_COLUMBUS";
+        }
+        if (data.equals("RACK1")){
+            return "CHECK_RACK_1";
+        }
+        if (data.equals("ASTROBEE")){
+            return "I_AM_HERE";
+        }
+        if (data.equals("INTBALL")){
+            return "LOOKING_FORWARD_TO_SEE_YOU";
+        }
+        if (data.equals("BLANK")){
+            return "NO_PROBLEM";
+        }
+        return "";
+    }
+    public Mat undistort(Mat src, Mat camMat, Mat distortionCoefficients){
+//        double[][] distortion = api.getNavCamIntrinsics(); //gets camera distortion
+//        Mat src = api.getMatNavCam(); //input image
+        Mat dst = new Mat();//output image
+//        Mat camMat = new Mat().zeros(3, 3, CvType.CV_64FC(1));//intrinsic camera matrix initializer
+//        Mat distortionCoefficients = new Mat().zeros(4, 1, CvType.CV_64FC(1)); //distortion coefficient initializer
+//
+//        for(int r=0; r<3; r++){ //fills intrinsic camera matrix with correct values
+//            for(int c=0; c<3; c++) {
+//                camMat.put(r, c, (distortion[0][3*r+c]));
+//                Log.i(TAG, "camMat[" + r +", " + c + "] = " + camMat.get(r, c));
+//                Log.i(TAG, "distortion[" + (3*r+c) + "] = " + distortion[0][3*r+c]);
+//            }
+//        }
+//        for(int i=0; i<distortion[1].length-1; i++){ //fills distorition coefficient array with values
+//            distortionCoefficients.put(i, 0, (distortion[1][i]));
+//            Log.i(TAG, "distortionCoefficients[" + i + "] = " + distortionCoefficients.get(0,1));
+//            Log.i(TAG, "distortion[" + i + "] = " + distortion[1][i]);
+//        }
+
+        org.opencv.imgproc.Imgproc.undistort(src, dst, camMat, distortionCoefficients); //undistorts image
+        return dst;
     }
 }
