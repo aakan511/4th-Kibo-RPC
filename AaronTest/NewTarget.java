@@ -1,0 +1,155 @@
+package jp.jaxa.iss.kibo.rpc.sampleapk;
+
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+
+import gov.nasa.arc.astrobee.types.Point;
+import gov.nasa.arc.astrobee.types.Quaternion;
+
+public class Target {
+
+    //orientations indexes also off by one because start point orientation is not needed
+    private static Quaternion[] orientations = new Quaternion[]{ (new Quaternion(0f, 0f, -0.707f, 0.707f)), (new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)), (new Quaternion(0f, 0.707f, 0f, 0.707f)),
+            (new Quaternion(0, 0, -1, 0)), (new Quaternion(-0.5f, -0.5f, -0.5f, 0.5f)), (new Quaternion(0, 0, 0, 1)), (new Quaternion(0, 0.707f, 0, 0.707f)) };
+
+    private static Path path1 = new Path(46.0, new Point[]{ (new Point(10.6d, -10.0d, 5.2988d)), (new Point(11.2146d, -9.92284, 5.47))}, orientations[0]);
+
+    private static Path[] target2 = {new Path(21.6, new Point[]{new Point(10.45, -9.21, 4.51)}, orientations[1]),
+            new Path(43.8, new Point[]{new Point(10.5, -9.0709, 4.75), new Point(10.45, -9.21, 4.51)} , orientations[1])};
+
+    private static Path[] target3 = {new Path(50.9, new Point[]{new Point(10.71, -8.5, 4.75), new Point(10.71, -7.763, 4.75)}, orientations[2]),
+            new Path(53.9, new Point[]{new Point(10.71, -8.5, 4.75), new Point(10.71, -7.763, 4.75)}, orientations[2]),
+            new Path(45.2, new Point[]{new Point(10.71, -8.5, 4.75), new Point(10.71, -7.763, 4.75)}, orientations[2])};
+
+    private static Path[] target4 = {new Path(62.6, new Point[]{new Point(10.5, -9.4, 4.7), new Point(10.51, -6.6115, 5.2074)}, orientations[3]),
+            new Path(45.1, new Point[]{new Point(10.51, -6.6115, 5.2074)}, orientations[3]),
+            new Path(56.6, new Point[]{new Point(10.51, -8.4, 4.7), new Point(10.51, -6.6115, 5.2074)}, orientations[3]),
+            new Path(29.6, new Point[]{new Point(10.51, -6.6115, 5.2074)}, orientations[3])};
+
+    private static Path[] target5 = {new Path(37.3, new Point[]{new Point(11.047,-7.9156,5.4)}, orientations[4]),   //new Point(10.5, -9.4, 4.7) , new Point(11.047,-7.9156,5.05)
+            new Path(36.0, new Point[]{new Point(11.047,-7.9156,5.4)}, orientations[4]), //5.3393
+            new Path(33.7, new Point[]{new Point(11.047,-7.9156,5.4)}, orientations[4]),
+            new Path(47.9, new Point[]{ new Point(10.71, -8.5, 4.85), new Point(11.047,-7.9156,5.4)},orientations[4]), //5.05
+            new Path(31.2, new Point[]{new Point(11.047,-7.9156,5.4)},orientations[4])}; //5.2074
+
+    private static Path[] target6 = {new Path(30.5, new Point[]{new Point( 11.405, -9.05, 4.94)} , orientations[5]),
+            new Path(27.5, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5]),
+            new Path(27.1, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5]),
+            new Path(31.6, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5]),
+            new Path(40.2, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5]),
+            new Path(29.8, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5])};
+
+    private static Path[] QR = {new Path(0.0, null, new Quaternion()), new Path(), new Path(), new Path(), new Path(), new Path()}; //This one is all u Justin
+
+    private static Point[] reversePointHelper = {new Point(11.2146d, -9.92284, 5.47), new Point(10.45, -9.21, 4.51), new Point(10.71, -7.763, 4.75), new Point(10.51, -6.6115, 5.2074), new Point(11.047,-7.9156,5.4), new Point( 11.405, -9.05, 4.94)};
+    
+    //QR = target 7
+    //QR indexes are off by one since there is no reason to go straight to the qr code from the start
+    private Target() {};
+
+    public static Path getPath(int currTarget, int nextTarget){
+        if(currTarget == nextTarget){
+            return null;
+        }
+
+        if(currTarget > nextTarget){
+            Path p = getPath(nextTarget, currTarget);//reversePath(getPath(nextTarget, currTarget));
+            //p.setQuaternion(orientations[nextTarget-1]);
+            Point[] pts = new Point[p.getPoints().length];
+
+
+            for(int i=0; i< pts.length-1; i++){
+                pts[i] = p.getPoints()[p.getPoints().length -1 - i];
+            }
+            pts[pts.length-1] = reversePointHelper[nextTarget-1];
+
+            return (new Path(p.getDistance(), pts, orientations[nextTarget-1]));
+        }
+        switch(nextTarget){
+            case 1:
+                if(currTarget==0){return path1;}
+                else{return null;}
+                //break;
+            case 2:
+                return target2[currTarget];
+                //break;
+            case 3:
+                return target3[currTarget];
+                //break;
+            case 4:
+                return target4[currTarget];
+                //break;
+            case 5:
+                return target5[currTarget];
+                //break;
+            case 6:
+                return target6[currTarget];
+                //break;
+            case 7:
+                return QR[currTarget-1];
+            default:
+                return null;
+                //break;
+        }
+    }
+
+    public static List<Integer> planPath(List<Integer> targets, int currTarget){
+        if(targets.size() == 1){
+            return targets;
+        }
+        if(targets.size() == 2){
+            Iterator<Integer> it = targets.iterator();
+            int nextTarget = it.next();
+            int nextNextTarget = it.next();
+            double dist1 = getPath(currTarget, nextTarget).getDistance() + getPath(nextTarget, nextNextTarget).getDistance();
+            double dist2 = getPath(currTarget, nextNextTarget).getDistance() + getPath(nextNextTarget, nextTarget).getDistance();
+
+            if(dist1<=dist2){
+                return targets;
+            }if(dist1>dist2){
+                Collections.reverse(targets);
+                return targets;
+            }
+        }
+
+        return targets;
+    }
+
+    public static Long nextTargetTime(int currTarget, int nextTarget){
+        if(currTarget == nextTarget)
+            return 0L;
+        return (long)((getPath(currTarget, nextTarget)).getDistance() * 1000);
+//        else if(currTarget > nextTarget){
+//            return(nextTargetTime(nextTarget, currTarget));
+//        }
+//
+//        switch(nextTarget){
+//            case 1:
+//                if(currTarget==0){return (long)path1.getDistance();}
+//                else{return null;}
+//                //break;
+//            case 2:
+//                return (long)target2[currTarget].getDistance();
+//            //break;
+//            case 3:
+//                return (long)target3[currTarget].getDistance();
+//            //break;
+//            case 4:
+//                return (long)target4[currTarget];
+//            //break;
+//            case 5:
+//                return target5[currTarget];
+//            //break;
+//            case 6:
+//                return target6[currTarget];
+//            //break;
+//            case 7:
+//                return QR[currTarget-1];
+//            default:
+//                return null;
+//            //break;
+//        }
+
+    }
+}
