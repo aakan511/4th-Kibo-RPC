@@ -11,7 +11,7 @@ public class Target {
 
     //orientations indexes also off by one because start point orientation is not needed
     private static Quaternion[] orientations = new Quaternion[]{ (new Quaternion(0f, 0f, -0.707f, 0.707f)), (new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)), (new Quaternion(0f, 0.707f, 0f, 0.707f)),
-            (new Quaternion(0, 0, -1, 0)), (new Quaternion(-0.5f, -0.5f, -0.5f, 0.5f)), (new Quaternion(0, 0, 0, 1)), (new Quaternion(0, 0.707f, 0, 0.707f)) };
+            (new Quaternion(0, 0, -1, 0)), (new Quaternion(-0.5f, -0.5f, -0.5f, 0.5f)), (new Quaternion(0, 0, 0, 1)), (new Quaternion(0f, 0.707f, 0f, 0.707f)) };//computeQuaternion(0.0, 90, 0)
 
     private static Path path1 = new Path(46.0, new Point[]{ (new Point(10.6d, -10.0d, 5.2988d)), (new Point(11.2146d, -9.92284, 5.47))}, orientations[0]);
 
@@ -40,9 +40,16 @@ public class Target {
             new Path(40.2, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5]),
             new Path(29.8, new Point[]{new Point( 11.405, -9.05, 4.94)}, orientations[5])};
 
-    private static Path[] QR = {new Path(0.0, null, new Quaternion()), new Path(), new Path(), new Path(), new Path(), new Path()}; //This one is all u Justin
+    //private static Path[] QR = {new Path(0.0, null, new Quaternion()), new Path(), new Path(), new Path(), new Path(), new Path()}; //This one is all u Justin
+    private static Path[] QR = {new Path(0.0, new Point[]{new Point(11.38, -8.56, 4.85)}, orientations[6]),
+            new Path(0.0, new Point[]{new Point(10.7, -8.95, 4.8), new Point(11.38, -8.56, 4.85)}, orientations[6]),
+            new Path(0.0, new Point[]{new Point(11.38d, -8.56d, 4.85d)}, orientations[6]), new Path(0.0, new Point[]{new Point(11.38d, -8.56d, 4.85d)}, orientations[6]),
+            new Path(0.0, new Point[]{new Point(11.38d, -8.56d, 4.85d)}, orientations[6]), new Path()};
 
-    private static Point[] reversePointHelper = {new Point(11.2146d, -9.92284, 5.47), new Point(10.45, -9.21, 4.51), new Point(10.71, -7.763, 4.75), new Point(10.51, -6.6115, 5.2074), new Point(11.047,-7.9156,5.4), new Point( 11.405, -9.05, 4.94)};
+    private static Point[] reversePointHelper = {new Point(11.2146d, -9.92284, 5.47), new Point(10.45, -9.21, 4.51),
+            new Point(10.71, -7.763, 4.75), new Point(10.51, -6.6115, 5.2074),
+            new Point(11.047,-7.9156,5.4), new Point( 11.405, -9.05, 4.94),
+            new Point(11.38d, -8.56d, 4.85d)};
     
     //QR = target 7
     //QR indexes are off by one since there is no reason to go straight to the qr code from the start
