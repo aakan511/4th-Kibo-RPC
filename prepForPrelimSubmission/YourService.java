@@ -84,7 +84,7 @@ public class YourService extends KiboRpcService {
                         moveAstrobee(p, goQR.getQuaternion(), 'A', false);
                     }
 
-                    api.flashlightControlFront(0.05f);
+                    api.flashlightControlFront(0.1f);
                     Mat img = api.getMatNavCam();
                     //Log.i(TAG,"Distortion Total :"+distortionCoefficients.total());
                     //api.saveMatImage(image, "1_QRCodes.png");
@@ -147,7 +147,7 @@ public class YourService extends KiboRpcService {
             for (Point p : goQR.getPoints()) {
                 moveAstrobee(p, goQR.getQuaternion(), 'A', false);
             }
-            api.flashlightControlFront(0.05f);
+            api.flashlightControlFront(0.1f);
             Mat image = api.getMatNavCam();
             //Log.i(TAG, "Distortion Total :" + distortionCoefficients.total());
             //api.saveMatImage(image, "1_QRCodes.png");
@@ -366,7 +366,7 @@ public class YourService extends KiboRpcService {
         if(!data.equals("")){
             return data;
         }
-        rectCrop = new Rect(20, 20, img_contourCrop.width()-20, (2*(img_contourCrop.height()/3))-20);
+        rectCrop = new Rect(17, 20, img_contourCrop.width()-20, (2*(img_contourCrop.height()/3))-20);
         Mat img3 = new Mat(img_contourCrop, rectCrop);
         api.saveMatImage(img3, "moreCrop.png");
         data = decoder.detectAndDecode(img3);
