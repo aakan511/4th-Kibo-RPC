@@ -337,8 +337,6 @@ public class YourService extends KiboRpcService {
         Core.flip(image, image, -1);
         QRCodeDetector decoder = new QRCodeDetector();
         //api.saveMatImage(image, "3_QRCodes_Undistort_Flip.png");
-
-        //Begin contour experiment
         Mat bw = image;//new Mat();
 
         Mat thresh = new Mat();
@@ -348,26 +346,32 @@ public class YourService extends KiboRpcService {
         List<MatOfPoint> contours = new ArrayList<>();
         Mat heirarchy = new Mat();
         Imgproc.findContours(thresh, contours, heirarchy,Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-        //Log.i(TAG, "contours = " + contours);
 
-        //actually using contour to crop
-        //Step 1: create rectangle
-        //Step 2: use it to crop the zoomed and flipped image
-
-        Rect contourCrop = Imgproc.boundingRect(contours.get(0));
-        Mat img_contourCrop = new Mat(image, contourCrop);
+        rectCrop = Imgproc.boundingRect(contours.get(0));
+        Mat img_contourCrop = new Mat(image, rectCrop);
         //api.saveMatImage(img_contourCrop, "contourCrop.png");
 
-        rectCrop = new Rect(5, 5, img_contourCrop.width()-5, (2*(img_contourCrop.height()/3))-5);
+        Mat points = new Mat();
+        String data = decoder.detectAndDecode(img_contourCrop, points);
+        if(!data.equals("")){
+            Log.i(TAG, "QR DATA(qr crop not needed): " + data);
+            return data;
+        }
+
+        rectCrop = Imgproc.boundingRect(points);
+        Mat qrCropTest = new Mat(img_contourCrop, rectCrop);
+        api.saveMatImage(qrCropTest, "qrCropTest.png");
+        data = decoder.detectAndDecode(qrCropTest);
+        Log.i(TAG, "QR DATA(qr crop): " + data);
+        if(!data.equals("")){
+            return data;
+        }
+        rectCrop = new Rect(20, 20, img_contourCrop.width()-20, (2*(img_contourCrop.height()/3))-20);
         Mat img3 = new Mat(img_contourCrop, rectCrop);
         api.saveMatImage(img3, "moreCrop.png");
-
-        //end contour experiment
-
-        String data = decoder.detectAndDecode(img3);
+        data = decoder.detectAndDecode(img3);
 
         Log.i(TAG, "QR DATA: " + data);
-
         return data;
     }
     protected String QRDataToReport(String data)
