@@ -66,7 +66,7 @@ public class YourService extends KiboRpcService {
         Log.i(TAG, "active targets(after planPath):" + Arrays.toString(targets.toArray()));
         Iterator<Integer> it = targets.iterator();
         int nextTarget = it.next();
-        while((api.getTimeRemaining().get(1) - (Target.nextTargetTime(currTarget, nextTarget) + Target.nextTargetTime(nextTarget, 5, qrRead))) > 5000) {
+        while((api.getTimeRemaining().get(1) - (Target.nextTargetTime(currTarget, nextTarget) + Target.qrTime(nextTarget, qrRead))) > 2000) {
 
 
                 if(!qrRead && ((currTarget==1 && nextTarget==2) || (currTarget==2 && nextTarget == 1))){
@@ -168,7 +168,7 @@ public class YourService extends KiboRpcService {
                 }else {
                     targets = api.getActiveTargets();
                     Log.i(TAG, "active targets(before planPath):" + currTarget + ", " + Arrays.toString(targets.toArray()));
-                    targets = Target.planPath(targets, currTarget);
+                    targets = Target.planPath(targets, currTarget, api.getTimeRemaining().get(1), qrRead);
                     Log.i(TAG, "active targets(after planPath):" + Arrays.toString(targets.toArray()));
                     it = targets.iterator();
                     nextTarget = it.next();
@@ -178,7 +178,7 @@ public class YourService extends KiboRpcService {
 
 
 //        int currTarget=0;
-//        int[] targets = {1};
+//        int[] targets = {4};
 //        for(int nextTarget : targets){
 //            List<Integer> list = api.getActiveTargets();
 //            Log.i(TAG, "active targets(nextTarget=" + nextTarget + "): " + Arrays.toString(list.toArray()));
@@ -190,46 +190,46 @@ public class YourService extends KiboRpcService {
 //
 //
 //
-//            //BEGIN OpenCV targeting
-//            api.flashlightControlFront(0.08f);
-//            Mat img = api.getMatNavCam();
-//            api.flashlightControlFront(0.0f);
-//            ArrayList<Mat> corners = new ArrayList<Mat>();
-//            Mat ids = new Mat();
-//
-//            Aruco.detectMarkers(img, Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250), corners, ids);
-//
-//            Mat rvec = new Mat();
-//            Mat tvec = new Mat();
-//            Aruco.estimatePoseSingleMarkers(corners, markerLength, camMat, distortionCoefficients, rvec, tvec);
-//            //solvePnP()
-//            Log.i(TAG, "rvec :"+rvec.dump());
-//            Log.i(TAG, "tvec :"+tvec.dump());
-//            Log.i(TAG, "ids :" +ids.dump());
-//
-//            //Mat axes = img.clone();
-//            if(ids.total()>0){
-//                boolean inRange = false;
-//                int id=0;
-//                while(!inRange && id<ids.total()){
-//                    if((int)ids.get(id, 0)[0]>=markerIDs[nextTarget-1][0] && (int)ids.get(id, 0)[0]<=markerIDs[nextTarget-1][1]){
-//                        inRange = true;
-//                        id--;
-//                    }
-//                    id++;
-//                }
-//                Log.i(TAG, "id from new process = " + id);
-//                Mat rotMatrix = new Mat(3,3,CvType.CV_64FC1, Scalar.all(0.0f));
-//                Calib3d.Rodrigues(rvec.row(id), rotMatrix);
-//                Log.i(TAG, "rotation matrix " + rotMatrix.dump());
-//                float[] coords = cornerAdjust((int)(ids.get(id, 0))[0], tvec.row(id).get(0, 0), rotMatrix);
-//                Point currPt = path.getPoints()[path.getPoints().length-1];
-//                Point pt1 = new Point(coords[0] + currPt.getX(), coords[1] + currPt.getY(), coords[2] + currPt.getZ());
-//                if(Target.distance(pt1, currPt) > 3.0f){
-//                    moveAstrobee(pt1, path.getQuaternion(), 'A', false);
-//                }
-//            }
-//            //END EXPERIMENT
+////            //BEGIN OpenCV targeting
+////            api.flashlightControlFront(0.08f);
+////            Mat img = api.getMatNavCam();
+////            api.flashlightControlFront(0.0f);
+////            ArrayList<Mat> corners = new ArrayList<Mat>();
+////            Mat ids = new Mat();
+////
+////            Aruco.detectMarkers(img, Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250), corners, ids);
+////
+////            Mat rvec = new Mat();
+////            Mat tvec = new Mat();
+////            Aruco.estimatePoseSingleMarkers(corners, markerLength, camMat, distortionCoefficients, rvec, tvec);
+////            //solvePnP()
+////            Log.i(TAG, "rvec :"+rvec.dump());
+////            Log.i(TAG, "tvec :"+tvec.dump());
+////            Log.i(TAG, "ids :" +ids.dump());
+////
+////            //Mat axes = img.clone();
+////            if(ids.total()>0){
+////                boolean inRange = false;
+////                int id=0;
+////                while(!inRange && id<ids.total()){
+////                    if((int)ids.get(id, 0)[0]>=markerIDs[nextTarget-1][0] && (int)ids.get(id, 0)[0]<=markerIDs[nextTarget-1][1]){
+////                        inRange = true;
+////                        id--;
+////                    }
+////                    id++;
+////                }
+////                Log.i(TAG, "id from new process = " + id);
+////                Mat rotMatrix = new Mat(3,3,CvType.CV_64FC1, Scalar.all(0.0f));
+////                Calib3d.Rodrigues(rvec.row(id), rotMatrix);
+////                Log.i(TAG, "rotation matrix " + rotMatrix.dump());
+////                float[] coords = cornerAdjust((int)(ids.get(id, 0))[0], tvec.row(id).get(0, 0), rotMatrix);
+////                Point currPt = path.getPoints()[path.getPoints().length-1];
+////                Point pt1 = new Point(coords[0] + currPt.getX(), coords[1] + currPt.getY(), coords[2] + currPt.getZ());
+////                if(Target.distance(pt1, currPt) > 3.0f){
+////                    moveAstrobee(pt1, path.getQuaternion(), 'A', false);
+////                }
+////            }
+////            //END EXPERIMENT
 //
 //            api.laserControl(true);
 //            Mat image = api.getMatNavCam();
@@ -272,7 +272,7 @@ public class YourService extends KiboRpcService {
                 Log.i(TAG, "Closer QR read: " + mQrContent);
                 api.flashlightControlFront(0.0f);
             }
-
+            Log.i(TAG, "Time remaining at end of QR: " + api.getTimeRemaining().get(1));
             currTarget = 5;
         }
 
