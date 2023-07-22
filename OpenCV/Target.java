@@ -32,16 +32,16 @@ public class Target {
             new Path(29.6, new Point[]{new Point(10.51, -6.6115, 5.2074)}, orientations[3])};
 
 
-    private static Path[] QR = {new Path(30, new Point[]{new Point(11.28, -8.56, 4.85)}, orientations[4]),
-            new Path(72.9, new Point[]{new Point(11.28, -8.56, 4.85)}, orientations[4]), //x 11.38
-            new Path(59.0, new Point[]{new Point(11.28, -8.56, 4.85)}, orientations[4]),
-            new Path(68.4, new Point[]{new Point(11.28, -8.56, 4.85)}, orientations[4])};
+    private static Path[] QR = {new Path(20, new Point[]{new Point(11.28, -8.56, 4.85)}, orientations[4]),
+            new Path(27, new Point[]{new Point(11.28, -8.56, 4.85)}, orientations[4]), //x 11.38
+            new Path(26.1, new Point[]{new Point(11.28, -8.56, 4.85)}, orientations[4]),
+            new Path(36, new Point[]{new Point(11.28, -8.56, 4.85)}, orientations[4])};
 
-    private static Path[] goal = {new Path(61.7, new Point[]{new Point(11.143d, -6.7607d, 4.9654d)}, orientations[5]),
-            new Path(54.4, new Point[]{new Point(10.8, -8.5, 4.75), new Point(11.143d, -6.7607d, 4.9654d)}, orientations[5]),
-            new Path(26.3, new Point[]{new Point(11.143d, -6.7607d, 4.9654d)}, orientations[5]),
-            new Path(21.6, new Point[]{new Point(11.143d, -6.7607d, 4.9654d)}, orientations[5]),
-            new Path(33.456, new Point[]{new Point(11.143d, -6.7607d, 4.9654d)}, orientations[5])};
+    private static Path[] goal = {new Path(40, new Point[]{new Point(11.143d, -6.7607d, 5.14d)}, orientations[5]),
+            new Path(37.6, new Point[]{new Point(11.143d, -6.7607d, 4.9654d)}, orientations[5]),
+            new Path(25.8, new Point[]{new Point(11.143d, -6.7607d, 4.9654d)}, orientations[5]),
+            new Path(21.2, new Point[]{new Point(11.143d, -6.7607d, 4.9654d)}, orientations[5]),
+            new Path(37, new Point[]{new Point(11.143d, -6.7607d, 4.9654d)}, orientations[5])};
     
     //QR = target 7
     //goal = target 8
@@ -113,19 +113,47 @@ public class Target {
 
         return targets;
     }
+    public static List<Integer> planPath(List<Integer> targets, int currTarget, long timeLeft, boolean qr){
+        if(targets.size() == 1){
+            return targets;
+        }
+        Iterator<Integer> it = targets.iterator();
+        int nextTarget = it.next();
+        int nextNextTarget = it.next();
+        if(qr && timeLeft < 90000){
+
+            double dist1 = getPath(currTarget, nextTarget).getDistance() + getPath(nextTarget, nextNextTarget).getDistance() + getPath(nextNextTarget, 6).getDistance();
+            double dist2 = getPath(currTarget, nextNextTarget).getDistance() + getPath(nextNextTarget, nextTarget).getDistance() + getPath(nextTarget, 6).getDistance();
+
+            if(dist1<=dist2 && dist1<90){
+                return targets;
+            }if(dist1>dist2 && dist2<90){
+                Collections.reverse(targets);
+                return targets;
+            }
+        }
+        double dist1 = getPath(currTarget, nextTarget).getDistance() + getPath(nextTarget, nextNextTarget).getDistance();
+        double dist2 = getPath(currTarget, nextNextTarget).getDistance() + getPath(nextNextTarget, nextTarget).getDistance();
+
+        if(dist1<=dist2){
+            return targets;
+        }if(dist1>dist2){
+            Collections.reverse(targets);
+            return targets;
+        }
+        return targets;
+    }
 
     public static Long nextTargetTime(int currTarget, int nextTarget){
         if(currTarget == nextTarget)
             return 0L;
         return (long)((getPath(currTarget, nextTarget)).getDistance() * 1000);
     }
-    public static Long nextTargetTime(int currTarget, int nextTarget, boolean readQR){
-        if(readQR){
-            return (long)((getPath(currTarget, 6)).getDistance() * 1000);
+    public static Long qrTime(int nextTarget, boolean readQR){
+        if(!readQR){
+            return (long)(((getPath(nextTarget, 5)).getDistance() + getPath(5, 6).getDistance())* 1000);
         }
-        if(currTarget == nextTarget)
-            return 0L;
-        return (long)((getPath(currTarget, nextTarget)).getDistance() * 1000);
+        return (long)(getPath(nextTarget, 6).getDistance())* 1000;
     }
 
     public static double distance(Point pt1, Point pt2){
