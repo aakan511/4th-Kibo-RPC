@@ -1,5 +1,7 @@
 package jp.jaxa.iss.kibo.rpc.usa;
 
+import android.util.Log;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -7,29 +9,31 @@ import java.util.List;
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
 
+import static android.content.ContentValues.TAG;
+
 public class Target {
 
     //orientations indexes also off by one because start point orientation is not needed
     private static Quaternion[] orientations = new Quaternion[]{ (new Quaternion(0f, 0f, -0.707f, 0.707f)), (new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)), (new Quaternion(0f, 0.707f, 0f, 0.707f)),
             (new Quaternion(0, 0, -1, 0)),  (new Quaternion(0f, 0.707f, 0f, 0.707f)), new Quaternion(0f, 0f, -0.707f, -0.707f)};
 
-    private static Point[] reversePointHelper = {new Point(11.2146d, -9.68, 5.47), new Point(10.45, -9.21, 4.70),
-            new Point(10.71, -7.763, 4.75), new Point(10.51, -6.6115, 5.2074),
+    public static Point[] reversePointHelper = {new Point(11.2146d, -9.68, 5.47), new Point(10.45, -9.21, 4.70),
+            new Point(10.71, -7.763, 4.72), new Point(10.71, -6.6115, 5.2074),
             new Point(11.38d, -8.56d, 4.85)};
 
     private static Path path1 = new Path(47, new Point[]{ (new Point(10.6d, -10.0d, 5.2988d)), (new Point(11.2146d, -9.68, 5.47))}, orientations[0]);
 
     private static Path[] target2 = {new Path(21.6, new Point[]{new Point(10.45, -9.21, 4.70)}, orientations[1]),
-            new Path(29, new Point[]{ new Point(10.45, -9.21, 4.70)} , orientations[1])}; //new Point(10.9, -9.2, 4.9),
+            new Path(29, new Point[]{ new Point(10.45, -9.21, 4.70)} , orientations[1])};
 
-    private static Path[] target3 = {new Path(50.9, new Point[]{new Point(10.71, -8.5, 4.75), new Point(10.71, -7.763, 4.75)}, orientations[2]),
-            new Path(36.7, new Point[]{new Point(10.71, -7.763, 4.75)}, orientations[2]),
-            new Path(31.5, new Point[]{new Point(10.71, -7.763, 4.75)}, orientations[2])};
+    private static Path[] target3 = {new Path(50.9, new Point[]{new Point(10.71, -8.5, 4.73), new Point(10.71, -7.763, 4.72)}, orientations[2]),
+            new Path(36.7, new Point[]{new Point(10.71, -7.763, 4.72)}, orientations[2]),
+            new Path(31.5, new Point[]{new Point(10.71, -7.763, 4.72)}, orientations[2])};
 
-    private static Path[] target4 = {new Path(62.6, new Point[]{new Point(10.5, -9.4, 4.7), new Point(10.51, -6.6115, 5.2074)}, orientations[3]),
-            new Path(44, new Point[]{new Point(10.51, -6.6115, 5.2074)}, orientations[3]),
-            new Path(40.7, new Point[]{new Point(10.51, -6.6115, 5.2074)}, orientations[3]),
-            new Path(29.6, new Point[]{new Point(10.51, -6.6115, 5.2074)}, orientations[3])};
+    private static Path[] target4 = {new Path(62.6, new Point[]{new Point(10.5, -9.4, 4.7), new Point(10.71, -6.6115, 5.2074)}, orientations[3]),
+            new Path(44, new Point[]{new Point(10.71, -6.6115, 5.2074)}, orientations[3]),
+            new Path(40.7, new Point[]{new Point(10.71, -6.6115, 5.2074)}, orientations[3]),
+            new Path(29.6, new Point[]{new Point(10.71, -6.6115, 5.2074)}, orientations[3])};
 
 
     private static Path[] QR = {new Path(20, new Point[]{new Point(11.28, -8.56, 4.85)}, orientations[4]),
@@ -47,12 +51,12 @@ public class Target {
     //goal = target 8
     //QR & goal indexes are off by one since there is no reason to go straight to the qr code from the start
 
-    private static boolean[] targetCalibration = {false, false, false, false};
+    public static boolean[] targetCalibration = {false, false, false, false};
     private Target() {};
 
     public static Path getPath(int currTarget, int nextTarget){
         if(currTarget == nextTarget){
-            return null;
+            return new Path();
         }
 
         if(currTarget > nextTarget){
@@ -71,7 +75,9 @@ public class Target {
         switch(nextTarget){
             case 1:
                 if(currTarget==0){return path1;}
-                else{return null;}
+                else{
+                    Log.i(TAG, "strange glitch");
+                    return null;}
                 //break;
             case 2:
                 return target2[currTarget];
@@ -87,7 +93,7 @@ public class Target {
             case 6:
                 return goal[currTarget-1];
             default:
-                return null;
+                return new Path();
                 //break;
         }
     }
@@ -177,8 +183,9 @@ public class Target {
     public static boolean isTargetCalibrated(int target){return targetCalibration[target-1];}
 
     public static void calibrateTarget(int target, Point pt){
-        //if(targetCalibration[target-1]){return;}
-        //targetCalibration[target-1]=true;
+        if(target>4){ return; }
+        if(targetCalibration[target-1]){return;}
+        targetCalibration[target-1]=true;
 
         reversePointHelper[target-1] = pt;
 
