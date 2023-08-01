@@ -2,16 +2,18 @@ package jp.jaxa.iss.kibo.rpc.usa;
 
 import android.util.Log;
 
+import org.opencv.aruco.Aruco;
+import org.opencv.calib3d.Calib3d;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.QRCodeDetector;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -31,6 +33,7 @@ public class YourService extends KiboRpcService {
     final String TAG = this.getClass().getSimpleName();
     final float markerLength = 0.05f;
     final int[][] markerIDs = {{1, 4}, {5, 8}, {9, 12}, {13, 16}};
+    final float[] radius = {0.05f, 0.06f, 0.04f, 0.06f};
 
     @Override
     protected void runPlan1(){
@@ -38,7 +41,6 @@ public class YourService extends KiboRpcService {
 
         // the mission starts
         api.startMission();
-        api.takeTargetSnapshot(0);
         double[][] navCamIntrinsics = api.getNavCamIntrinsics(); //gets camera distortion
         Mat camMat = new Mat().zeros(3, 3, CvType.CV_64FC(1));//intrinsic camera matrix initializer
         Mat distortionCoefficients = new Mat().zeros(4, 1, CvType.CV_64FC(1)); //distortion coefficient initializer
@@ -61,9 +63,9 @@ public class YourService extends KiboRpcService {
         int currTarget=0;
         List<Integer> targets = api.getActiveTargets();
         //Log.i(TAG, "current target: " + currTarget);
-        Log.i(TAG, "active targets(before planPath): " + currTarget + ", " + Arrays.toString(targets.toArray()));
+        //Log.i(TAG, "active targets(before planPath): " + currTarget + ", " + Arrays.toString(targets.toArray()));
         targets = Target.planPath(targets, currTarget);
-        Log.i(TAG, "active targets(after planPath):" + Arrays.toString(targets.toArray()));
+        //Log.i(TAG, "active targets(after planPath):" + Arrays.toString(targets.toArray()));
         Iterator<Integer> it = targets.iterator();
         int nextTarget = it.next();
         while((api.getTimeRemaining().get(1) - (Target.nextTargetTime(currTarget, nextTarget) + Target.qrTime(nextTarget, qrRead))) > 2000) {
@@ -86,7 +88,7 @@ public class YourService extends KiboRpcService {
                     api.flashlightControlFront(0.0f);
 
                     if(mQrContent.equals("")){
-                        Point pt = new Point(path.getPoints()[path.getPoints().length-1].getX(), path.getPoints()[path.getPoints().length-1].getY(), path.getPoints()[path.getPoints().length-1].getZ()-0.1f);
+                        Point pt = new Point(path.getPoints()[path.getPoints().length-1].getX(), path.getPoints()[path.getPoints().length-1].getY(), path.getPoints()[path.getPoints().length-1].getZ()-0.15f);
                         moveAstrobee(pt, path.getQuaternion(), 'A', false);
                         api.flashlightControlFront(0.08f);
                         image = api.getMatNavCam();
@@ -109,51 +111,78 @@ public class YourService extends KiboRpcService {
                     moveAstrobee(p, path.getQuaternion(), 'A', false);
                 }
 
-//                //BEGIN OpenCV targeting
-//                api.flashlightControlFront(0.08f);
-//                Mat img = api.getMatNavCam();
-//                api.flashlightControlFront(0.0f);
-//                ArrayList<Mat> corners = new ArrayList<Mat>();
-//                Mat ids = new Mat();
-//
-//                Aruco.detectMarkers(img, Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250), corners, ids);
-//
-//                Mat rvec = new Mat();
-//                Mat tvec = new Mat();
-//                Aruco.estimatePoseSingleMarkers(corners, markerLength, camMat, distortionCoefficients, rvec, tvec);
-//                //solvePnP()
-//                Log.i(TAG, "rvec :"+rvec.dump());
-//                Log.i(TAG, "tvec :"+tvec.dump());
-//                Log.i(TAG, "ids :" +ids.dump());
-//
-//                //Mat axes = img.clone();
-//                if(ids.total()>0){
-//                    boolean inRange = false;
-//                    int id=0;
-//                    while(!inRange && id<ids.total()){
-//                        if((int)ids.get(id, 0)[0]>=markerIDs[nextTarget-1][0] && (int)ids.get(id, 0)[0]<=markerIDs[nextTarget-1][1]){
-//                            inRange = true;
-//                            id--;
-//                            if(ids.get(id, 0)[0] == 7 && id+2 < ids.total()){
-//                                id++;
-//                                inRange = false;
-//                            }
-//                        }
-//                        id++;
-//                    }
-//                    Log.i(TAG, "id from new process = " + id);
-//                    Mat rotMatrix = new Mat(3,3,CvType.CV_64FC1, Scalar.all(0.0f));
-//                    Calib3d.Rodrigues(rvec.row(id), rotMatrix);
-//                    Log.i(TAG, "rotation matrix " + rotMatrix.dump());
-//                    Log.i(TAG, "current target: " + nextTarget);
-//                    float[] coords = cornerAdjust((int)(ids.get(id, 0))[0], tvec.row(id).get(0, 0), rotMatrix);
-//                    Point currPt = path.getPoints()[path.getPoints().length-1];
-//                    Point pt1 = new Point(coords[0] + currPt.getX(), coords[1] + currPt.getY(), coords[2] + currPt.getZ());
-//                if(Target.distance(pt1, currPt) > 3.0f){
-//                    Target.calibrateTarget(nextTarget, pt1);
-//                    moveAstrobee(pt1, path.getQuaternion(), 'A', false);
-//                }
-//                }
+                //BEGIN OpenCV targeting
+                //note points can be abreviated if calculating movement distance based on relative movement and 0 rather than two absolute points
+
+                if(!Target.isTargetCalibrated(nextTarget)) {
+                    ArrayList<Mat> corners;// = new ArrayList<Mat>();
+                    Mat ids;// = new Mat();
+                    Mat rvec;// = new Mat();
+                    Mat tvec;// = new Mat();
+                    Point currPt = path.getPoints()[path.getPoints().length-1];
+                    Point pt1; //= new Point(coords[0] + currPt.getX(), coords[1] + currPt.getY(), coords[2] + currPt.getZ());
+                    boolean keepCalibrating = true;
+
+                    for (int counter = 0; counter < 2 && keepCalibrating; counter++) {
+                        corners = new ArrayList<Mat>();
+                        ids = new Mat();
+                        rvec = new Mat();
+                        tvec = new Mat();
+
+
+                        api.flashlightControlFront(0.08f);
+                        Mat img = api.getMatNavCam();
+                        api.flashlightControlFront(0.0f);
+                        Aruco.detectMarkers(img, Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250), corners, ids);
+                        Aruco.estimatePoseSingleMarkers(corners, markerLength, camMat, distortionCoefficients, rvec, tvec);
+//                        Log.i(TAG, "rvec :" + rvec.dump());
+                        Log.i(TAG, "tvec :" + tvec.dump());
+                        Log.i(TAG, "ids :" + ids.dump());
+
+                        //Mat axes = img.clone();
+                        if (ids.total() > 0) {
+                            boolean inRange = false;
+                            int id = 0;
+                            for (int j = 0; !inRange && j < ids.total(); j++) {
+//                                Log.i(TAG, "logging in ID while loop");
+//                                Log.i(TAG, "nextTarget-1 = " + (nextTarget - 1));
+//                                Log.i(TAG, "nextTarget=" + nextTarget);
+//                                Log.i(TAG, "get ID through int cast: " + (int) (ids.get(id, 0)[0]));
+//                                Log.i(TAG, "" + ((int) ids.get(j, 0)[0] >= markerIDs[nextTarget - 1][0]));
+//                                Log.i(TAG, "" + ((int) ids.get(j, 0)[0] <= markerIDs[nextTarget - 1][1]));
+//                                Log.i(TAG, "j=" + j);
+
+                                if ((int) ids.get(j, 0)[0] >= markerIDs[nextTarget - 1][0] && (int) ids.get(j, 0)[0] <= markerIDs[nextTarget - 1][1]) {
+                                    inRange = true;
+                                    id = j;
+                                }
+                            }
+                            Log.i(TAG, "id from new process = " + id);
+                            Mat rotMatrix = new Mat(3, 3, CvType.CV_64FC1, Scalar.all(0.0f));
+
+                            Calib3d.Rodrigues(rvec.row(id), rotMatrix);
+
+                            Log.i(TAG, "rotation matrix " + rotMatrix.dump());
+                            float[] coords = cornerAdjust1((int) (ids.get(id, 0))[0], tvec.row(id).get(0, 0), rotMatrix);
+                            Log.i(TAG, "counter = " + counter);
+
+                            pt1 = new Point(coords[0] + currPt.getX(), coords[1] + currPt.getY(), coords[2] + currPt.getZ());
+
+                            if (Target.distance(pt1, currPt) >= 0.05f) {//radius[nextTarget-1]
+                                Log.i(TAG, "adjustingToTarget" + counter);
+                                moveAstrobee(pt1, path.getQuaternion(), 'A', false);
+                            } else {
+                                Log.i(TAG, "target calibrated in range");
+                                keepCalibrating = false;
+                            }
+                            currPt = new Point(pt1.getX(), pt1.getY(), pt1.getZ());
+                        }
+                    }
+                    Target.calibrateTarget(nextTarget, currPt);//currPt
+                }else{
+                    Log.i(TAG, "skipped adjustToTarget");
+                }
+
                 //END EXPERIMENT
 
                 api.laserControl(true);
@@ -167,9 +196,9 @@ public class YourService extends KiboRpcService {
                     nextTarget = it.next();
                 }else {
                     targets = api.getActiveTargets();
-                    Log.i(TAG, "active targets(before planPath):" + currTarget + ", " + Arrays.toString(targets.toArray()));
+                    //Log.i(TAG, "active targets(before planPath):" + currTarget + ", " + Arrays.toString(targets.toArray()));
                     targets = Target.planPath(targets, currTarget, api.getTimeRemaining().get(1), qrRead);
-                    Log.i(TAG, "active targets(after planPath):" + Arrays.toString(targets.toArray()));
+                    //Log.i(TAG, "active targets(after planPath):" + Arrays.toString(targets.toArray()));
                     it = targets.iterator();
                     nextTarget = it.next();
                 }
@@ -178,7 +207,7 @@ public class YourService extends KiboRpcService {
 
 
 //        int currTarget=0;
-//        int[] targets = {4};
+//        int[] targets = {1, 2, 3, 4};
 //        for(int nextTarget : targets){
 //            List<Integer> list = api.getActiveTargets();
 //            Log.i(TAG, "active targets(nextTarget=" + nextTarget + "): " + Arrays.toString(list.toArray()));
@@ -190,46 +219,92 @@ public class YourService extends KiboRpcService {
 //
 //
 //
-////            //BEGIN OpenCV targeting
-////            api.flashlightControlFront(0.08f);
-////            Mat img = api.getMatNavCam();
-////            api.flashlightControlFront(0.0f);
-////            ArrayList<Mat> corners = new ArrayList<Mat>();
-////            Mat ids = new Mat();
-////
-////            Aruco.detectMarkers(img, Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250), corners, ids);
-////
-////            Mat rvec = new Mat();
-////            Mat tvec = new Mat();
-////            Aruco.estimatePoseSingleMarkers(corners, markerLength, camMat, distortionCoefficients, rvec, tvec);
-////            //solvePnP()
-////            Log.i(TAG, "rvec :"+rvec.dump());
-////            Log.i(TAG, "tvec :"+tvec.dump());
-////            Log.i(TAG, "ids :" +ids.dump());
-////
-////            //Mat axes = img.clone();
-////            if(ids.total()>0){
-////                boolean inRange = false;
-////                int id=0;
-////                while(!inRange && id<ids.total()){
-////                    if((int)ids.get(id, 0)[0]>=markerIDs[nextTarget-1][0] && (int)ids.get(id, 0)[0]<=markerIDs[nextTarget-1][1]){
-////                        inRange = true;
-////                        id--;
-////                    }
-////                    id++;
-////                }
-////                Log.i(TAG, "id from new process = " + id);
-////                Mat rotMatrix = new Mat(3,3,CvType.CV_64FC1, Scalar.all(0.0f));
-////                Calib3d.Rodrigues(rvec.row(id), rotMatrix);
-////                Log.i(TAG, "rotation matrix " + rotMatrix.dump());
-////                float[] coords = cornerAdjust((int)(ids.get(id, 0))[0], tvec.row(id).get(0, 0), rotMatrix);
-////                Point currPt = path.getPoints()[path.getPoints().length-1];
-////                Point pt1 = new Point(coords[0] + currPt.getX(), coords[1] + currPt.getY(), coords[2] + currPt.getZ());
-////                if(Target.distance(pt1, currPt) > 3.0f){
-////                    moveAstrobee(pt1, path.getQuaternion(), 'A', false);
-////                }
-////            }
-////            //END EXPERIMENT
+//            //BEGIN OpenCV targeting
+//
+//            //note points can be abreviated if calculating movement distance based on relative movement and 0 rather than two absolute points
+//            if(!Target.isTargetCalibrated(nextTarget)) {
+//                ArrayList<Mat> corners;// = new ArrayList<Mat>();
+//                Mat ids;// = new Mat();
+//                Mat rvec;// = new Mat();
+//                Mat tvec;// = new Mat();
+//                Point currPt = path.getPoints()[path.getPoints().length-1];
+//                Point pt1; //= new Point(coords[0] + currPt.getX(), coords[1] + currPt.getY(), coords[2] + currPt.getZ());
+//                boolean keepCalibrating = true;
+//
+//                for (int counter = 0; counter < 1 && keepCalibrating; counter++) {
+//                    corners = new ArrayList<Mat>();
+//                    ids = new Mat();
+//                    rvec = new Mat();
+//                    tvec = new Mat();
+//
+//
+//                    api.flashlightControlFront(0.08f);
+//                    Mat img = api.getMatNavCam();
+//                    api.flashlightControlFront(0.0f);
+//                    Aruco.detectMarkers(img, Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250), corners, ids);
+//                    Aruco.estimatePoseSingleMarkers(corners, markerLength, camMat, distortionCoefficients, rvec, tvec);
+//                    //solvePnP()
+//                    Log.i(TAG, "rvec :" + rvec.dump());
+//                    Log.i(TAG, "tvec :" + tvec.dump());
+//                    Log.i(TAG, "ids :" + ids.dump());
+//
+//                    //Mat axes = img.clone();
+//                    if (ids.total() > 0) {
+//                        boolean inRange = false;
+//                        int id = 0;
+//                        for (int j = 0; !inRange && j < ids.total(); j++) {
+////                            Log.i(TAG, "logging in ID while loop");
+////                            Log.i(TAG, "nextTarget-1 = " + (nextTarget - 1));
+////                            Log.i(TAG, "nextTarget=" + nextTarget);
+////                            Log.i(TAG, "get ID through int cast: " + (int) (ids.get(id, 0)[0]));
+////                            Log.i(TAG, "" + ((int) ids.get(j, 0)[0] >= markerIDs[nextTarget - 1][0]));
+////                            Log.i(TAG, "" + ((int) ids.get(j, 0)[0] <= markerIDs[nextTarget - 1][1]));
+////                            Log.i(TAG, "j=" + j);
+//
+//                            if ((int) ids.get(j, 0)[0] >= markerIDs[nextTarget - 1][0] && (int) ids.get(j, 0)[0] <= markerIDs[nextTarget - 1][1]) {
+//                                //inRange = true;
+//                                id = j;
+//                                Mat rotMatrix = new Mat(3, 3, CvType.CV_64FC1, Scalar.all(0.0f));
+//
+//                                Calib3d.Rodrigues(rvec.row(j), rotMatrix);
+//
+//                                //Log.i(TAG, "rotation matrix " + rotMatrix.dump());
+//                                float[] coords = cornerAdjust1((int) (ids.get(j, 0))[0], tvec.row(j).get(0, 0), rotMatrix);
+//                                Log.i(TAG, "Begin dump for arcuo marker:" + (int) (ids.get(j, 0))[0]);
+//                                Log.i(TAG, "relative coordinates to ar tag are: " + -1*coords[0] + ", " + -1*coords[1] + ", " + coords[2]);
+//                                pt1 = new Point(coords[0] + currPt.getX(), coords[1] + currPt.getY(), coords[2] + currPt.getZ());
+//                                moveAstrobee(pt1, path.getQuaternion(), 'A', false);
+//                                api.laserControl(true);
+//                                api.saveMatImage(api.getMatNavCam(), ""+ nextTarget+"," + (int) (ids.get(j, 0))[0] + ".png");
+//                                api.laserControl(false);
+//
+//                            }
+//                        }
+//                        Log.i(TAG, "" + ids.total());
+//                        Log.i(TAG, "id from new process = " + id);
+//                        Mat rotMatrix = new Mat(3, 3, CvType.CV_64FC1, Scalar.all(0.0f));
+//
+//                        Calib3d.Rodrigues(rvec.row(id), rotMatrix);
+//
+//                        Log.i(TAG, "rotation matrix " + rotMatrix.dump());
+//                        float[] coords = cornerAdjust((int) (ids.get(id, 0))[0], tvec.row(id).get(0, 0), rotMatrix);
+//                        Log.i(TAG, "counter = " + counter);
+//
+//                        pt1 = new Point(coords[0] + currPt.getX(), coords[1] + currPt.getY(), coords[2] + currPt.getZ());
+//                        if (Target.distance(pt1, currPt) > .015f) {
+//                            //moveAstrobee(pt1, path.getQuaternion(), 'A', false);
+//                            Log.i(TAG, "adjustingToTarget" + counter);
+//                        } else {
+//                            Log.i(TAG, "target calibrated in range");
+//                            keepCalibrating = false;
+//                        }
+//                        currPt = api.getRobotKinematics().getPosition();//new Point(pt1.getX(), pt1.getY(), pt1.getZ());
+//                    }
+//                }
+//                Target.calibrateTarget(nextTarget, currPt);
+//            }
+//
+//            //END EXPERIMENT
 //
 //            api.laserControl(true);
 //            Mat image = api.getMatNavCam();
@@ -259,7 +334,7 @@ public class YourService extends KiboRpcService {
 
 
             if(mQrContent.equals("")){
-                Point pt = new Point(path.getPoints()[path.getPoints().length-1].getX(), path.getPoints()[path.getPoints().length-1].getY(), path.getPoints()[path.getPoints().length-1].getZ()-0.1f);
+                Point pt = new Point(path.getPoints()[path.getPoints().length-1].getX(), path.getPoints()[path.getPoints().length-1].getY(), path.getPoints()[path.getPoints().length-1].getZ()-0.15f);
                 moveAstrobee(pt, path.getQuaternion(), 'A', false);
                 api.flashlightControlFront(0.08f);
                 image = api.getMatNavCam();
@@ -281,6 +356,7 @@ public class YourService extends KiboRpcService {
         for(Point p : goGoal.getPoints()){
             moveAstrobee(p, goGoal.getQuaternion(), 'A', false);
         }
+        Log.i(TAG, "reporting targetCalibration: " + Target.targetCalibration[0]+ Target.targetCalibration[1]+ Target.targetCalibration[2]+ Target.targetCalibration[3]);
         api.reportMissionCompletion(QRDataToReport(mQrContent));
     }
 
@@ -456,6 +532,16 @@ public class YourService extends KiboRpcService {
         api.saveMatImage(image, "3_QRCodes_Undistort_Flip.png");
         Mat bw = image;//new Mat();
 
+//        com.google.zxing.BinaryBitmap bmp = new BinaryBitmap();
+//        Utils.matToBitmap(image, bmp);
+//        api.saveBitmapImage(bmp, "bitmaptest.png");
+//        com.google.zxing.Result result = new QRCodeReader().decode(bmp);
+//        String text = result.getText();
+//        Log.i(TAG, "result1: " + text);
+//        if(!result.equals("")){
+//            return text;
+//        }
+
         Mat thresh = new Mat();
         Imgproc.threshold(bw, thresh, 230, 255, Imgproc.THRESH_BINARY);
         //api.saveMatImage(thresh, "simpleThresh.png");
@@ -468,26 +554,17 @@ public class YourService extends KiboRpcService {
         Mat img_contourCrop = new Mat(image, rectCrop);
         //api.saveMatImage(img_contourCrop, "contourCrop.png");
 
-        Mat points = new Mat();
-        String data = decoder.detectAndDecode(img_contourCrop, points);
-        if(!data.equals("")){
-            Log.i(TAG, "QR DATA(qr crop not needed): " + data);
-            return data;
-        }
+//        bmp = Bitmap.createBitmap(image.cols(), image.rows(), Bitmap.Config.ARGB_8888);
+//        Utils.matToBitmap(image, bmp);
+//        api.saveBitmapImage(bmp, "bitmaptest2.png");
+//        result = new QRCodeReader().decode(bmp);
+//        String text = result.getText();
+//        Log.i(TAG, "result1: " + text);
+//        if(!result.equals("")){
+//            return text;
+//        }
 
-        rectCrop = Imgproc.boundingRect(points);
-        Mat qrCropTest = new Mat(img_contourCrop, rectCrop);
-        api.saveMatImage(qrCropTest, "qrCropTest.png");
-        data = decoder.detectAndDecode(qrCropTest);
-        Log.i(TAG, "QR DATA(qr crop): " + data);
-        if(!data.equals("")){
-            return data;
-        }
-        rectCrop = new Rect(17, 20, img_contourCrop.width()-20, (2*(img_contourCrop.height()/3))-20);
-        Mat img3 = new Mat(img_contourCrop, rectCrop);
-        api.saveMatImage(img3, "moreCrop.png");
-        data = decoder.detectAndDecode(img3);
-
+        String data = decoder.detectAndDecode(img_contourCrop);
         Log.i(TAG, "QR DATA: " + data);
 
         return data;
@@ -521,77 +598,127 @@ public class YourService extends KiboRpcService {
         return dst;
     }
 
-    protected float[] cornerAdjust(int id, double[] pt, Mat r){
+//    protected float[] cornerAdjust(int id, double[] pt, Mat r){
+//
+//        float[] deltaLaser = {0.09f, 0.0585f};
+//
+//        float[] orthoVectorX = {(float)r.get(0,0)[0], (float)r.get(0,1)[0]};
+//        float[] orthoVectorY = {(float)r.get(1,0)[0], (float)r.get(1,1)[0]};
+//
+//        if(Math.abs(r.get(0,0)[0])<Math.abs(r.get(0, 1)[0])){
+//            orthoVectorX = new float[]{(float)r.get(1,0)[0], (float)r.get(1,1)[0]};
+//            orthoVectorY = new float[]{(float)r.get(0,0)[0], (float)r.get(0,1)[0]};
+//        }
+//
+//
+//
+//
+//        if(orthoVectorX[0] < 0){
+//            orthoVectorX[0] = -orthoVectorX[0];
+//            orthoVectorX[1] = -orthoVectorX[1];
+//        }
+//        if(orthoVectorY[1] < 0){
+//            orthoVectorY[0] = -orthoVectorY[0];
+//            orthoVectorY[1] = -orthoVectorY[1];
+//        }
+//
+//        float[] rotAdjust = {0.10f * orthoVectorX[0] + 0.0375f * orthoVectorY[0], 0.10f * orthoVectorX[1] + 0.0375f * orthoVectorY[1]};
+//        //float[] rotAdjust = {0.10f * orthoVectorX[0],  0.0375f * orthoVectorY[1]};
+//        Log.i(TAG, "rotAdjust: " + rotAdjust[0] + " , " + rotAdjust[1]);
+//        Log.i(TAG, "aruco id: " + id);
+//        switch(id){
+//            //target 1
+//            case 1:
+//                return new float[]{(float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0]-0.025f, 0, (float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1] };
+//            case 2:
+//                return new float[]{(float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0]-0.025f, 0, (float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1]};
+//            case 3:
+//                return new float[]{(float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0]-0.025f, 0, (float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1]};
+//            case 4:
+//                return new float[]{(float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0]-0.025f, 0, (float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1]};
+//
+//            //target 2
+//            case 5:
+//                return new float[]{(float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0]-0.025f, -1*((float)pt[1])-Math.abs(rotAdjust[1]) - deltaLaser[1], 0};
+//            case 6:
+//                return new float[]{(float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0]-0.025f, -1*((float)pt[1])-Math.abs(rotAdjust[1]) - deltaLaser[1], 0};
+//            case 7:
+//                return new float[]{(float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0]-0.025f, -1*((float)pt[1])+Math.abs(rotAdjust[1]) - deltaLaser[1], 0};
+//            case 8:
+//                return new float[]{(float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0]-0.025f, -1*((float)pt[1])+Math.abs(rotAdjust[1]) - deltaLaser[1], 0}; //inverted deltaLaser1
+//
+//            //target 3
+//            case 9:
+//                return new float[]{1*((float)pt[1] + deltaLaser[1]+Math.abs(rotAdjust[1]))+0.025f, 1*((float)pt[0] - Math.abs(rotAdjust[0]) - deltaLaser[0])-0.025f, 0}; //inverted laserdelta[1] on all targets
+//            case 10:
+//                return new float[]{1*((float)pt[1] + deltaLaser[1]+Math.abs(rotAdjust[1]))+0.025f, 1*((float)pt[0] + Math.abs(rotAdjust[0]) - deltaLaser[0])-0.04f, 0};
+//            case 11:
+//                return new float[]{1*((float)pt[1] + deltaLaser[1]-Math.abs(rotAdjust[1]))+0.025f, 1*((float)pt[0] + Math.abs(rotAdjust[0]) - deltaLaser[0])-0.025f, 0};//changed
+//            case 12:
+//                return new float[]{1*((float)pt[1] + deltaLaser[1]-Math.abs(rotAdjust[1]))+0.025f, 1*((float)pt[0] - Math.abs(rotAdjust[0]) - deltaLaser[0])-0.04f, 0};
+//
+//            //target 4
+//            case 13:
+//                return new float[]{0, -1*((float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0])+0.025f, 1*((float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1])};
+//            case 14:
+//                return new float[]{0, -1*((float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0])+0.025f, 1*((float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1])};
+//            case 15:
+//                return new float[]{0, -1*((float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0])+0.025f, 1*((float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1])};
+//            case 16:
+//                return new float[]{0, -1*((float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0])+0.025f, 1*((float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1])};
+//
+//
+//             default:
+//                return new float[]{0, 0, 0};
+//
+//        }
+//    }
 
-        float[] deltaLaser = {0.0994f, 0.0585f};
-
-        float[] orthoVectorX = {(float)r.get(0,0)[0], (float)r.get(0,1)[0]};
-        float[] orthoVectorY = {(float)r.get(1,0)[0], (float)r.get(1,1)[0]};
-
-        if(Math.abs(r.get(0,0)[0])<Math.abs(r.get(0, 1)[0])){
-            orthoVectorX = new float[]{(float)r.get(1,0)[0], (float)r.get(1,1)[0]};
-            orthoVectorY = new float[]{(float)r.get(0,0)[0], (float)r.get(0,1)[0]};
-        }
-
-
-
-
-        if(orthoVectorX[0] < 0){
-            orthoVectorX[0] = -orthoVectorX[0];
-            orthoVectorX[1] = -orthoVectorX[1];
-        }
-        if(orthoVectorY[1] < 0){
-            orthoVectorY[0] = -orthoVectorY[0];
-            orthoVectorY[1] = -orthoVectorY[1];
-        }
-
-        float[] rotAdjust = {0.10f * orthoVectorX[0] + 0.0375f * orthoVectorY[0], 0.10f * orthoVectorX[1] + 0.0375f * orthoVectorY[1]};
-        //float[] rotAdjust = {0.10f * orthoVectorX[0],  0.0375f * orthoVectorY[1]};
-        Log.i(TAG, "rotAdjust: " + rotAdjust[0] + " , " + rotAdjust[1]);
+    protected float[] cornerAdjust1(int id, double[] pt, Mat r){
         Log.i(TAG, "aruco id: " + id);
         switch(id){
             //target 1
             case 1:
-                return new float[]{(float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0], 0, (float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1]};
+                return new float[]{(float)pt[0]-0.2157991556f, 0, (float)pt[1]+0.0962053633f}; //needs to be fixed
             case 2:
-                return new float[]{(float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0], 0, (float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1]};
+                return new float[]{(float)pt[0]-0.0121166379f, 0, (float)pt[1]+0.0931235607f};
             case 3:
-                return new float[]{(float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0], 0, (float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1]};
+                return new float[]{(float)pt[0]-0.0121166379f, 0, (float)pt[1]+0.016808413f};
             case 4:
-                return new float[]{(float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0], 0, (float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1] };
+                return new float[]{(float)pt[0]-0.21263513f, 0, (float)pt[1]+0.01762434f};
 
             //target 2
             case 5:
-                return new float[]{(float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0], (float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1], 0};
+                return new float[]{(float)pt[0]-0.21863572f, -1*((float)pt[1])-0.13f, 0};
             case 6:
-                return new float[]{(float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0], (float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1], 0};
+                return new float[]{(float)pt[0]-0.006f, -1*((float)pt[1])-0.13f, 0};
             case 7:
-                return new float[]{(float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0], (float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1], 0};
+                return new float[]{(float)pt[0]-0.006f, -1*((float)pt[1])-0.0474837071f, 0};
             case 8:
-                return new float[]{(float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0], (float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1], 0};
+                return new float[]{(float)pt[0]-0.21728513f, -1*((float)pt[1])-0.040998265f, 0};
 
             //target 3
             case 9:
-                return new float[]{ 1*((float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1]), -1*((float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0]), 0};
+                return new float[]{1*((float)pt[1])+0.097196944f, 1*((float)pt[0])-0.21073888f, 0};
             case 10:
-                return new float[]{ 1*((float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1]), -1*((float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0]), 0};
+                return new float[]{1*((float)pt[1])+0.09422761f, 1*((float)pt[0])-0.006f, 0};
             case 11:
-                return new float[]{1*((float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1]), -1*((float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0]), 0};
+                return new float[]{1*((float)pt[1])+0.020253867f, 1*((float)pt[0])-0.006f, 0};
             case 12:
-                return new float[]{1*((float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1]), -1*((float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0]), 0};
+                return new float[]{1*((float)pt[1])+0.022121891f, 1*((float)pt[0])-0.2141265f, 0};
 
             //target 4
             case 13:
-                return new float[]{0, -1*((float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0]), 1*((float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1])};
+                return new float[]{0, -1*((float)pt[0])+0.1936096526f, 1*((float)pt[1])+0.09426758f};
             case 14:
-                return new float[]{ 0, -1*((float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0]), 1*((float)pt[1]+Math.abs(rotAdjust[1]) + deltaLaser[1])};
+                return new float[]{0, -1*((float)pt[0])-0.05f, 1*((float)pt[1])+0.0926298684f}; //needs to be fixed
             case 15:
-                return new float[]{0, -1*((float)pt[0]+Math.abs(rotAdjust[0]) - deltaLaser[0]), 1*((float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1])};
+                return new float[]{0, -1*((float)pt[0])-0.05f, 1*((float)pt[1])+0.022150304f};
             case 16:
-                return new float[]{0, -1*((float)pt[0]-Math.abs(rotAdjust[0]) - deltaLaser[0]), 1*((float)pt[1]-Math.abs(rotAdjust[1]) + deltaLaser[1])};
+                return new float[]{0, -1*((float)pt[0])+0.1936096526f, 1*((float)pt[1])+0.022150304f};
 
 
-             default:
+            default:
                 return new float[]{0, 0, 0};
 
         }
